@@ -42,12 +42,14 @@
 
       return _items[index % _maxSize];
     }
-    
+
     public bool ContainsKey(uint index) {
       return index >= MinFrame && index <= MaxFrame;
     }
 
-    public uint GetNearestLowerKey(uint index) {
+    public uint GetNearestOrLowerKey(uint index) {
+      if(ContainsKey(index))
+        return index;
       return MinFrame;
     }
   }

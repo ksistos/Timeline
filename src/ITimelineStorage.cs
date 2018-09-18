@@ -6,6 +6,6 @@ namespace Timeline {
     T GetItem(uint index);
 
     bool ContainsKey(uint index);
-    uint GetNearestLowerKey(uint index);
-  } 
+    uint GetNearestOrLowerKey(uint index);
+  }
 }

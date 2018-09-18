@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{574FC9CC-EF84-43E7-A941-8C2A0B75EFA1}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Timeline</RootNamespace>
     <AssemblyName>Timeline</AssemblyName>
@@ -48,6 +48,7 @@
     <Compile Include="src\ITimelineStorage.cs" />
     <Compile Include="src\Tests\Editor\TimelineStorageTest.cs" />
     <Compile Include="src\Tests\Editor\TimelineUnitTest.cs" />
+    <Compile Include="src\Tests\TestMain.cs" />
     <Compile Include="src\Timeline.cs" />
     <Compile Include="src\TimelineException.cs" />
     <Compile Include="src\TimelineStorage.cs" />

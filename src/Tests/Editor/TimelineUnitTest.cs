@@ -3,7 +3,7 @@ using NUnit.Framework;
 
 namespace Timeline.Tests {
   public class TimelineTest {
-    private static Timeline<DummyState, DummyCommand> GetTimeline() {
+    public static Timeline<DummyState, DummyCommand> GetTimeline() {
       return new Timeline<DummyState, DummyCommand>(new DummyState {Value = 0},
         100, (ref DummyState state) => {
           state.Value += 1;
@@ -33,6 +33,7 @@ namespace Timeline.Tests {
     public void TimelineCanBeAdvanced() {
       var tl = GetTimeline();
       tl.Advance();
+      Assert.AreEqual(1, tl.CurrentState.Value);
       tl.Advance();
       Assert.AreEqual(2, tl.CurrentState.Value);
       Assert.AreEqual(2u, tl.CurrentFrame);
@@ -221,7 +222,7 @@ namespace Timeline.Tests {
     }
 
     [Test]
-    public void TimelineNCannotAdvanceIfNeedRewind() {
+    public void TimelineCanAdvanceIfNeedRewind() {
       var tl = GetTimeline();
       tl.Advance();
       tl.Advance();
@@ -231,7 +232,9 @@ namespace Timeline.Tests {
       Assert.AreEqual(3, tl.CurrentState.Value);
       Assert.IsTrue(tl.NeedRewind);
       Assert.AreEqual(2u, tl.OldestNewCommandFrame);
-      Assert.Throws<TimelineException>(() => tl.Advance());
+      tl.Advance();
+      Assert.AreEqual(1004, tl.CurrentState.Value);
+      Assert.AreEqual(4, tl.CurrentFrame);
     }
 
     [Test]
@@ -276,12 +279,8 @@ namespace Timeline.Tests {
       tl.Advance();
       for(uint i = 0; i < 10000; i++) {
         tl.RegisterCommand(i + 1u, new DummyCommand {Value = 1});
-        if(tl.NeedRewind) {
-          var frameToReturn = tl.CurrentFrame;
-          tl.Rewind(tl.OldestNewCommandFrame);
-          tl.FastForward(frameToReturn);
+        if(tl.NeedRewind)
           rewindCount++;
-        }
 
         tl.Advance();
       }
@@ -291,7 +290,7 @@ namespace Timeline.Tests {
       Assert.AreEqual(10000, rewindCount);
     }
 
-    private class DummyState : ICloneable {
+    public class DummyState : ICloneable {
       public int Value;
 
       public object Clone() {
@@ -299,7 +298,7 @@ namespace Timeline.Tests {
       }
     }
 
-    private class DummyCommand : IComparable {
+    public class DummyCommand : IComparable {
       public enum OperationEnum {
         Mult = 0,
         Div = 1,

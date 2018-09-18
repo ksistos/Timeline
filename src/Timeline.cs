@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace Timeline {
   public class Timeline<TStateType, TCommandType>
@@ -13,25 +12,31 @@ namespace Timeline {
     private readonly AdvanceTimeAction _advanceTimeAction;
 
     private readonly Dictionary<uint, List<TCommandType>> _commands;
-
     private readonly ITimelineStorage<TStateType> _history;
     private readonly ProcessCommandAction _processCommandAction;
 
-    public Timeline(TStateType initialState, uint historySize, AdvanceTimeAction advanceTime,
-      ProcessCommandAction processCommand) {
+    public Timeline(TStateType initialState, ITimelineStorage<TStateType> historyStorage,
+      AdvanceTimeAction advanceTimeAction,
+      ProcessCommandAction processCommandAction) {
       CurrentFrame = 0u;
       LatestFrame = 0u;
 
       OldestNewCommandFrame = 0;
       NeedRewind = false;
 
-      _history = new TimelineStorage<TStateType>(historySize) {[CurrentFrame] = initialState};
+      _history = historyStorage;
+      _history[CurrentFrame] = initialState;
 
-      _advanceTimeAction = advanceTime;
-      _processCommandAction = processCommand;
+      _advanceTimeAction = advanceTimeAction;
+      _processCommandAction = processCommandAction;
 
       _commands = new Dictionary<uint, List<TCommandType>>();
       InitialState = initialState;
+    }
+
+    public Timeline(TStateType initialState, uint historySize, AdvanceTimeAction advanceTime,
+      ProcessCommandAction processCommand) : this(initialState, new TimelineStorage<TStateType>(historySize),
+      advanceTime, processCommand) {
     }
 
     public TStateType CurrentState => _history[CurrentFrame];
@@ -43,28 +48,21 @@ namespace Timeline {
     public uint OldestNewCommandFrame { get; private set; }
 
     public void Advance() {
-      if(NeedRewind)
-        throw new TimelineException("Cannot advance without rewind");
+      if(NeedRewind) {
+        var cf = CurrentFrame;
+
+        Rewind(OldestNewCommandFrame);
+        FastForward(cf);
+      }
 
       var newState = (TStateType)CurrentState.Clone();
 
       newState = ModifyState(CurrentFrame + 1, newState);
-      _advanceTimeAction(ref newState);
       CurrentFrame++;
 
       StoreState(CurrentFrame, newState);
 
       OldestNewCommandFrame = CurrentFrame;
-    }
-
-    public void Rewind(uint frame) {
-      if(frame >= CurrentFrame)
-        throw new TimelineException("Cannot rewind forward in time");
-      if(_history.GetNearestLowerKey(frame) > frame)
-        throw new TimelineException("Cannot rewind so far back in time");
-
-      CurrentFrame = frame;
-      NeedRewind = false;
     }
 
     public void RegisterCommand(uint targetFrame, TCommandType command) {
@@ -81,6 +79,17 @@ namespace Timeline {
         SetNeedRewind(targetFrame - 1);
     }
 
+    public void Rewind(uint frame) {
+      if(frame >= CurrentFrame)
+        throw new TimelineException("Cannot rewind forward in time");
+      if(_history.GetNearestOrLowerKey(frame) > frame)
+        throw new TimelineException("Cannot rewind so far back in time");
+
+      CurrentFrame = _history.GetNearestOrLowerKey(frame);
+
+      NeedRewind = false;
+    }
+
     public void FastForward(uint targetFrame) {
       while(targetFrame > CurrentFrame)
         Advance();
@@ -93,12 +102,12 @@ namespace Timeline {
     }
 
     private TStateType ModifyState(uint newFrame, TStateType state) {
-      if(!_commands.ContainsKey(newFrame))
-        return state;
-
       var modifiedState = state;
-      foreach(var command in _commands[newFrame])
-        _processCommandAction(ref modifiedState, command);
+      if(_commands.ContainsKey(newFrame))
+        foreach(var command in _commands[newFrame])
+          _processCommandAction(ref modifiedState, command);
+
+      _advanceTimeAction(ref modifiedState);
 
       return modifiedState;
     }
